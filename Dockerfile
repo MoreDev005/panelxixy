@@ -1,47 +1,36 @@
 # Stage 1: Build stage
-FROM node:24-alpine AS build
+FROM node:24-slim AS build
 
-# 1. Install dependencies untuk native modules (node-gyp, node-pty, dll)
-# Kita butuh python3, make, dan g++ untuk proses build.
-RUN apk add --no-cache \
+# Install build tools di Debian Slim
+RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
     gcc \
-    linux-headers
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# 2. Copy package files
 COPY package*.json ./
-
-# 3. Install SEMUA dependencies (termasuk devDeps untuk build)
 RUN npm install
-
-# 4. Copy seluruh source code
 COPY . .
-
-# 5. Opsional: Hapus devDependencies setelah build untuk menghemat ruang
-# RUN npm prune --production
 
 # ---
 
-# Stage 2: Production stage (Image Akhir)
-FROM node:24-alpine AS runner
+# Stage 2: Production stage
+FROM node:24-slim AS runner
 
-# Tentukan direktori kerja
+# Di Debian Slim, kita tetap install sedikit library dasar 
+# supaya node-pty bisa panggil shell dengan lancar
+RUN apt-get update && apt-get install -y \
+    shasum \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-
-# Set environment ke production
 ENV NODE_ENV=production
 
-# 6. Salin file dari stage build
-# Kita salin semua karena node-pty butuh binary yang sudah di-compile di stage 1
+# Salin semua hasil build
 COPY --from=build /app ./
 
-# 7. Expose port (sesuaikan dengan aplikasi kamu)
 EXPOSE 8000
 
-# 8. Jalankan aplikasi
-# Menggunakan 'node' langsung jauh lebih hemat RAM dibanding 'npm start'
 CMD ["node", "server.js"]
