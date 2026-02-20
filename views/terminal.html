@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal - Xixy Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+    <style>
+        body { background-color: #0d1117; color: white; display: flex; flex-direction: column; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+        .bg-ptero-card { background-color: #161b22; }
+        .logo-glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; }
+        main { flex: 1; }
+        #terminal-container { padding: 10px; background: black; border-radius: 12px; height: 400px; }
+        @media (min-width: 768px) { #terminal-container { height: 500px; } }
+        
+        .xterm-viewport::-webkit-scrollbar { width: 6px; }
+        .xterm-viewport::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        
+        /* Custom Scrollbar for Shortcut Buttons */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <nav class="p-4 border-b border-gray-800 flex justify-between items-center px-6 md:px-10 bg-ptero-card sticky top-0 z-50">
+        <div class="flex items-center gap-4 cursor-pointer" onclick="location.href='/home'">
+            <div class="logo-glow w-10 h-10 md:w-11 md:h-11 rounded-full overflow-hidden p-1.5 flex items-center justify-center bg-[#0d1117]">
+                <img src="/logo.png" onerror="this.src='https://ui-avatars.com/api/?name=P&background=3b82f6&color=fff'" class="w-full h-full object-cover rounded-full">
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-white font-black tracking-tighter text-base md:text-lg leading-none uppercase">XIXY-PANEL</h1>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] md:text-[9px] text-yellow-500 font-bold tracking-[0.2em] uppercase italic">Interactive Terminal</span>
+                </div>
+            </div>
+        </div>
+        <a href="/home" class="text-[10px] font-bold text-gray-500 hover:text-white transition uppercase tracking-widest">Home</a>
+    </nav>
+
+    <div class="bg-gray-900 border-b border-gray-800 flex gap-6 px-6 md:px-10 text-[10px] font-bold uppercase tracking-widest overflow-x-auto whitespace-nowrap no-scrollbar">
+        <a id="lnk-c" class="py-4 text-gray-500 hover:text-white transition">Console</a>
+        <a id="lnk-f" class="py-4 text-gray-500 hover:text-white transition">Files</a>
+        <a id="lnk-s" class="py-4 text-gray-500 hover:text-white transition">Settings</a>
+        <a id="lnk-t" class="py-4 border-b-2 border-blue-500 text-white">Terminal</a>
+    </div>
+
+    <main class="p-4 md:p-10 max-w-6xl mx-auto w-full">
+        <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h2 class="text-lg md:text-xl font-bold">Interactive Shell</h2>
+                <p class="text-[10px] md:text-xs text-gray-500 mt-1 uppercase tracking-wider leading-relaxed">Gunakan untuk setup awal/pairing.</p>
+            </div>
+            
+            <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button onclick="sendShortcut('npm install')" class="flex-shrink-0 px-3 py-2 bg-blue-600/10 border border-blue-500/30 text-blue-400 text-[9px] font-bold uppercase rounded-lg hover:bg-blue-600 hover:text-white transition">
+                    📦 Install
+                </button>
+                <button onclick="sendShortcut('npm start')" class="flex-shrink-0 px-3 py-2 bg-green-600/10 border border-green-500/30 text-green-400 text-[9px] font-bold uppercase rounded-lg hover:bg-green-600 hover:text-white transition">
+                    🚀 Start
+                </button>
+                <button onclick="sendShortcut('ls -la')" class="flex-shrink-0 px-3 py-2 bg-gray-600/10 border border-gray-500/30 text-gray-400 text-[9px] font-bold uppercase rounded-lg hover:bg-gray-600 hover:text-white transition">
+                    📂 List
+                </button>
+                <button onclick="sendShortcut('\x03')" class="flex-shrink-0 px-3 py-2 bg-red-600/10 border border-red-500/30 text-red-400 text-[9px] font-bold uppercase rounded-lg hover:bg-red-600 hover:text-white transition">
+                    🛑 STOP (CTRL+C)
+                </button>
+                <button onclick="term.clear()" class="flex-shrink-0 px-3 py-2 bg-purple-600/10 border border-purple-500/30 text-purple-400 text-[9px] font-bold uppercase rounded-lg hover:bg-purple-600 hover:text-white transition">
+                    🧹 Clear UI
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-black p-2 md:p-4 rounded-2xl border border-gray-800 shadow-2xl mb-6">
+            <div id="terminal-container"></div>
+        </div>
+
+        <div class="bg-yellow-600/10 border border-yellow-500/20 p-4 rounded-xl">
+            <div class="flex gap-3">
+                <span class="text-yellow-500">⚠️</span>
+                <p class="text-[9px] md:text-[10px] text-yellow-500 font-bold uppercase tracking-widest leading-relaxed">
+                    PERINGATAN: Terminal ini hanya untuk proses interaktif sementara. Jalankan aplikasi via tab Console untuk penggunaan jangka panjang.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-ptero-card border-t border-gray-800 p-6 md:p-8 mt-10">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full border border-gray-800 overflow-hidden p-1">
+                    <img src="/logo.png" onerror="this.src='https://ui-avatars.com/api/?name=P&background=3b82f6&color=fff'" class="w-full h-full object-cover rounded-full opacity-40">
+                </div>
+                <p class="text-[9px] md:text-[10px] text-gray-600 font-bold uppercase tracking-widest">&copy; 2026 Xixy Panel • PTY Terminal</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="socket-status" class="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span id="socket-text" class="text-[9px] text-gray-500 font-bold uppercase tracking-tighter">Connecting...</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const parts = window.location.pathname.split('/').filter(p => p.length > 0);
+        const appName = parts[1];
+
+        document.getElementById('lnk-c').href = `/dashboard/${appName}/console`;
+        document.getElementById('lnk-f').href = `/dashboard/${appName}/files`;
+        document.getElementById('lnk-s').href = `/dashboard/${appName}/settings`;
+        document.getElementById('lnk-t').href = `/dashboard/${appName}/terminal`;
+
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: window.innerWidth < 768 ? 12 : 14,
+            fontFamily: '"Fira Code", monospace',
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff',
+                cursor: '#3b82f6'
+            },
+            convertEol: true
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal-container'));
+        
+        function fitTerminal() {
+    try { 
+        fitAddon.fit(); 
+        // Beritahu backend bahwa ukuran terminal berubah
+        if (socket && socket.connected) {
+            socket.emit('terminal-resize', { 
+                appName: appName, 
+                cols: term.cols, 
+                rows: term.rows 
+            });
+        }
+    } catch (e) { 
+        console.error("Fit error", e); 
+    }
+}
+
+        window.addEventListener('resize', fitTerminal);
+        setTimeout(fitTerminal, 500);
+
+        term.write('\x1b[32m[SYSTEM] PTY Session Ready. Initializing...\x1b[0m\r\n');
+
+        const socket = io();
+
+        socket.on('connect', () => {
+            document.getElementById('socket-status').className = 'w-2 h-2 bg-green-500 rounded-full';
+            document.getElementById('socket-text').innerText = "Terminal Connected";
+    
+            // Join dan Init
+            socket.emit('join-app', appName);
+            socket.emit('init-terminal', appName);
+
+            // Kirim ukuran terminal awal ke server setelah join
+            setTimeout(fitTerminal, 200);
+        });
+        socket.on('disconnect', () => {
+        document.getElementById('socket-status').className = 'w-2 h-2 bg-red-500 rounded-full';
+        document.getElementById('socket-text').innerText = "Disconnected";
+        term.write('\r\n\x1b[31m[SYSTEM] Connection lost. Session will be saved for 30s...\x1b[0m\r\n');
+        });
+
+        // Handler untuk Shortcut
+        function sendShortcut(cmd) {
+            if (!socket.connected) return;
+            // Kirim command + carriage return (\r) kecuali untuk CTRL+C (\x03)
+            const input = (cmd === '\x03') ? cmd : cmd + '\r';
+            socket.emit('terminal-input', { appName, input: input });
+            term.focus();
+        }
+
+        term.onData(data => {
+            socket.emit('terminal-input', { appName, input: data });
+        });
+
+        socket.on('terminal-output', data => {
+            term.write(data);
+        });
+    </script>
+</body>
+</html>

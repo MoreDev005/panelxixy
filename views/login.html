@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Login - Xixy Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: white; -webkit-tap-highlight-color: transparent; }
+        .bg-card { background-color: #161b22; }
+        .logo-glow { 
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); 
+            border: 2px solid rgba(59, 130, 246, 0.3);
+        }
+        /* Menghilangkan auto-zoom pada iPhone saat klik input */
+        @media screen and (max-width: 768px) {
+            input { font-size: 16px !important; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6"> <div class="bg-card p-8 md:p-10 rounded-[2.5rem] border border-gray-800 w-full max-w-[400px] shadow-2xl text-center">
+        
+        <div class="logo-glow w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-6 overflow-hidden p-1 bg-[#0d1117]">
+            <img src="/logo.png" 
+                 onerror="this.src='https://ui-avatars.com/api/?name=X&background=3b82f6&color=fff'" 
+                 class="w-full h-full object-cover rounded-full">
+        </div>
+
+        <div class="mb-8">
+            <h2 class="text-xl md:text-2xl font-black tracking-tighter italic">XIXY-PANEL</h2>
+            <div class="flex justify-center items-center gap-2 mt-1">
+                <span class="w-1 h-1 bg-blue-500 rounded-full"></span>
+                <p class="text-[8px] md:text-[9px] text-gray-500 font-bold uppercase tracking-[0.2em] italic">Secure Authentication</p>
+                <span class="w-1 h-1 bg-blue-500 rounded-full"></span>
+            </div>
+        </div>
+        
+        <div class="space-y-4">
+            <input type="text" id="u" placeholder="Username" 
+                   class="w-full p-4 bg-gray-900 border border-gray-700 rounded-2xl outline-none focus:border-blue-500 transition-all text-center appearance-none">
+            
+            <input type="password" id="p" placeholder="Password" 
+                   class="w-full p-4 bg-gray-900 border border-gray-700 rounded-2xl outline-none focus:border-blue-500 transition-all text-center appearance-none">
+            
+            <button onclick="login()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-2xl font-black text-xs tracking-widest transition-all active:scale-95 shadow-lg mt-2">
+                SIGN IN
+            </button>
+        </div>
+
+        <p class="mt-10 text-[9px] text-gray-600 font-bold uppercase tracking-widest">© 2026 Xixy Panel by Xixy Dev Team</p>
+    </div>
+
+    <script>
+        async function login() {
+            const u = document.getElementById('u');
+            const p = document.getElementById('p');
+            
+            if(!u.value || !p.value) return alert("Please fill all fields");
+
+            try {
+                const r = await fetch('/api/login', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({user: u.value, pass: p.value}) 
+                });
+                
+                if(r.ok) {
+                    location.href = '/home';
+                } else {
+                    alert("Invalid credentials");
+                }
+            } catch (e) {
+                alert("Server error");
+            }
+        }
+    </script>
+</body>
+</html>

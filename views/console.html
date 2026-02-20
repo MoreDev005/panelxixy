@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console - Xixy Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background-color: #0d1117; color: white; display: flex; flex-direction: column; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+        .bg-ptero-card { background-color: #161b22; }
+        .logo-glow { box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; }
+        main { flex: 1; }
+        #out::-webkit-scrollbar { width: 6px; }
+        #out::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        #out { scroll-behavior: smooth; word-wrap: break-word; overflow-wrap: break-word; }
+        /* Menjaga baris baru */
+        #out span { display: block; min-height: 1em; }
+
+        /* Custom Scrollbar untuk Nav Mobile */
+        .custom-scroll::-webkit-scrollbar { height: 2px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #3b82f6; }
+    </style>
+</head>
+<body>
+    <nav class="p-4 border-b border-gray-800 flex justify-between items-center px-6 md:px-10 bg-ptero-card sticky top-0 z-50">
+        <div class="flex items-center gap-4 cursor-pointer" onclick="location.href='/home'">
+            <div class="logo-glow w-10 h-10 md:w-11 md:h-11 rounded-full overflow-hidden p-1.5 flex items-center justify-center bg-[#0d1117]">
+                <img src="/logo.png" onerror="this.src='https://ui-avatars.com/api/?name=P&background=3b82f6&color=fff'" class="w-full h-full object-cover rounded-full">
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-white font-black tracking-tighter text-base md:text-lg leading-none uppercase">XIXY-PANEL</h1>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] md:text-[9px] text-blue-500 font-bold tracking-[0.2em] uppercase italic">Control Panel</span>
+                </div>
+            </div>
+        </div>
+        <a href="/home" class="text-[10px] font-bold text-gray-500 hover:text-white transition uppercase tracking-widest">Home</a>
+    </nav>
+
+    <div class="bg-gray-900 border-b border-gray-800 flex gap-6 px-6 md:px-10 text-[10px] font-bold uppercase tracking-widest overflow-x-auto whitespace-nowrap custom-scroll">
+        <a id="lnk-c" class="py-4 border-b-2 border-blue-500 text-white">Console</a>
+        <a id="lnk-f" class="py-4 text-gray-500 hover:text-white transition">Files</a>
+        <a id="lnk-s" class="py-4 text-gray-500 hover:text-white transition">Settings</a>
+        <a id="lnk-t" class="py-4 text-gray-500 hover:text-white transition">Terminal</a>
+    </div>
+
+    <main class="p-4 md:p-10 max-w-6xl mx-auto w-full">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-ptero-card p-4 md:p-5 rounded-2xl border border-gray-800 shadow-lg">
+                <p class="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase mb-1 tracking-widest">CPU Usage</p>
+                <p id="cpu" class="text-xl md:text-2xl font-mono text-blue-400">0%</p>
+            </div>
+            <div class="bg-ptero-card p-4 md:p-5 rounded-2xl border border-gray-800 shadow-lg">
+                <p class="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Memory</p>
+                <p id="mem" class="text-xl md:text-2xl font-mono text-green-400">0 MB</p>
+            </div>
+            <div class="bg-ptero-card p-4 md:p-5 rounded-2xl border border-gray-800 shadow-lg">
+                <p class="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase mb-1 tracking-widest">Uptime</p>
+                <p id="upt" class="text-xl md:text-2xl font-mono text-yellow-400">0s</p>
+            </div>
+        </div>
+
+        <div id="out" class="bg-black h-[350px] md:h-[450px] p-4 md:p-5 rounded-2xl font-mono text-[10px] md:text-[11px] overflow-y-auto border border-gray-800 shadow-2xl mb-4 leading-relaxed"></div>
+        
+        <div class="flex flex-wrap gap-2 md:gap-3 pt-8 border-t border-gray-800">
+            <button onclick="ctrl('start')" class="flex-1 md:flex-none bg-green-600/10 text-green-500 border border-green-500/20 px-6 py-3 rounded-xl text-[10px] font-bold hover:bg-green-600 hover:text-white transition uppercase tracking-widest">Start</button>
+            <button onclick="ctrl('restart')" class="flex-1 md:flex-none bg-yellow-600/10 text-yellow-500 border border-yellow-500/20 px-6 py-3 rounded-xl text-[10px] font-bold hover:bg-yellow-600 hover:text-white transition uppercase tracking-widest">Restart</button>
+            <button onclick="ctrl('stop')" class="flex-1 md:flex-none bg-red-600/10 text-red-500 border border-red-500/20 px-6 py-3 rounded-xl text-[10px] font-bold hover:bg-red-600 hover:text-white transition uppercase tracking-widest">Stop</button>
+            <button onclick="ctrl('delete')" class="flex-1 md:flex-none bg-red-600/10 text-red-500 border border-red-500/20 px-6 py-3 rounded-xl text-[10px] font-bold hover:bg-red-600 hover:text-white transition uppercase tracking-widest">Kill</button>
+            <button id="btn-install" onclick="installDeps()" class="w-full md:w-auto md:ml-auto bg-blue-600/10 text-blue-400 border border-blue-500/20 px-6 py-3 rounded-xl text-[10px] font-bold hover:bg-blue-600 hover:text-white transition uppercase tracking-widest">
+                NPM Install
+            </button>
+        </div>
+    </main>
+
+    <footer class="bg-ptero-card border-t border-gray-800 p-6 md:p-8">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full border border-gray-800 overflow-hidden p-1">
+                    <img src="/logo.png" onerror="this.src='https://ui-avatars.com/api/?name=P&background=3b82f6&color=fff'" class="w-full h-full object-cover rounded-full opacity-40">
+                </div>
+                <p class="text-[9px] md:text-[10px] text-gray-600 font-bold uppercase tracking-widest">&copy; 2026 Xixy Panel</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="socket-status" class="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span id="socket-text" class="text-[9px] text-gray-500 font-bold uppercase tracking-tighter">Disconnected</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const parts = window.location.pathname.split('/').filter(p => p.length > 0);
+        const appName = parts[1];
+        const out = document.getElementById('out');
+
+        // Nav Links
+        document.getElementById('lnk-c').href = `/dashboard/${appName}/console`;
+        document.getElementById('lnk-f').href = `/dashboard/${appName}/files`;
+        document.getElementById('lnk-s').href = `/dashboard/${appName}/settings`;
+        document.getElementById('lnk-t').href = `/dashboard/${appName}/terminal`;
+
+        // --- SISTEM LOGGING ---
+        function appendLog(htmlMsg) {
+            out.innerHTML += htmlMsg;
+            if(out.innerHTML.length > 60000) {
+                out.innerHTML = out.innerHTML.slice(-30000);
+            }
+            out.scrollTop = out.scrollHeight;
+        }
+
+        async function loadHistory() {
+            try {
+                const r = await fetch(`/api/apps/logs/${appName}`);
+                const data = await r.json();
+                if (data.logs && data.logs.length > 0) {
+                    out.innerHTML = data.logs.join('');
+                    out.scrollTop = out.scrollHeight;
+                }
+            } catch (e) { console.error("History fail:", e); }
+        }
+       	function formatUptime(seconds) {
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+
+    const parts = [];
+    if (d > 0) parts.push(`${d}d`);
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
+
+    return parts.join(' ');
+}
+
+        // --- SOCKET.IO ---
+        const socket = io();
+        
+        socket.on('connect', () => {
+            socket.emit('join-app', appName);
+            loadHistory(); 
+            document.getElementById('socket-status').className = 'w-2 h-2 bg-green-500 rounded-full';
+            document.getElementById('socket-text').innerText = "Connected";
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('socket-status').className = 'w-2 h-2 bg-red-500 rounded-full';
+            document.getElementById('socket-text').innerText = "Disconnected";
+        });
+
+        socket.on('log-data', d => appendLog(d));
+
+        socket.on('resource-update', d => {
+            document.getElementById('cpu').innerText = d.cpu + '%';
+            document.getElementById('mem').innerText = d.memory;
+            if(d.uptime) document.getElementById('upt').innerText = formatUptime(d.uptime);
+        });
+
+        // --- ACTIONS ---
+        async function installDeps() {
+            if(!confirm("Lanjut menginstall dependensi?")) return;
+            const btn = document.getElementById('btn-install');
+            btn.innerText = "INSTALLING...";
+            btn.disabled = true;
+
+            try {
+                const r = await fetch('/api/apps/install', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ name: appName })
+                });
+                const data = await r.json();
+                if(!r.ok) alert(data.error);
+            } catch (e) {
+                alert("Connection failed.");
+            } finally {
+                btn.innerText = "NPM INSTALL";
+                btn.disabled = false;
+            }
+        }
+
+        async function ctrl(action) {
+            const timestamp = new Date().toLocaleTimeString();
+            let color = "#3b82f6";
+            if(action === 'start') color = "#10b981";
+            if(action === 'stop') color = "#ef4444";
+
+            appendLog(`<div style="color: ${color}; font-weight: bold; margin: 5px 0;">[SYSTEM] Action ${action.toUpperCase()} sent at ${timestamp}</div>`);
+
+            try {
+                const response = await fetch('/api/control', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({name: appName, action}) 
+                });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    if (result.error && result.error.includes("Entry Point")) {
+                        if (confirm(result.error + "\n\nLanjut Ke halaman Settings?")) {
+                            location.href = `/dashboard/${appName}/settings`;
+                        }
+                    } else {
+                        appendLog(`<div style="color: #ef4444;">[ERROR] ${action.toUpperCase()} failed: ${result.error}</div>`);
+                    }
+                }
+            } catch (e) { 
+                appendLog(`<div style="color: #ef4444;">[ERROR] Connection failed during ${action.toUpperCase()}</div>`);
+            }
+        }
+    </script>
+</body>
+</html>
