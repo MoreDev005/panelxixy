@@ -1,40 +1,47 @@
 # Stage 1: Build stage
 FROM node:24-alpine AS build
 
-# Tentukan direktori kerja
+# 1. Install dependencies untuk native modules (node-gyp, node-pty, dll)
+# Kita butuh python3, make, dan g++ untuk proses build.
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    linux-headers
+
 WORKDIR /app
 
-# Salin package.json dan package-lock.json terlebih dahulu
-# Ini memanfaatkan layer caching agar 'npm install' tidak jalan ulang jika tidak ada perubahan package
+# 2. Copy package files
 COPY package*.json ./
 
-# Install dependensi (termasuk devDependencies jika diperlukan untuk build)
+# 3. Install SEMUA dependencies (termasuk devDeps untuk build)
 RUN npm install
 
-# Salin seluruh kode sumber
+# 4. Copy seluruh source code
 COPY . .
 
-# Jika kamu punya langkah build (seperti TypeScript), jalankan di sini:
-# RUN npm run build
+# 5. Opsional: Hapus devDependencies setelah build untuk menghemat ruang
+# RUN npm prune --production
 
 # ---
 
-# Stage 2: Production stage
+# Stage 2: Production stage (Image Akhir)
 FROM node:24-alpine AS runner
 
+# Tentukan direktori kerja
 WORKDIR /app
 
 # Set environment ke production
 ENV NODE_ENV=production
 
-# Hanya salin file yang diperlukan dari stage build
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
+# 6. Salin file dari stage build
+# Kita salin semua karena node-pty butuh binary yang sudah di-compile di stage 1
 COPY --from=build /app ./
 
-# Expose port yang digunakan aplikasi (sesuaikan jika bukan 3000)
-EXPOSE 3000
+# 7. Expose port (sesuaikan dengan aplikasi kamu)
+EXPOSE 8000
 
-# Jalankan aplikasi
-# Menggunakan 'node server.js' biasanya lebih ringan daripada 'npm start' di production
+# 8. Jalankan aplikasi
+# Menggunakan 'node' langsung jauh lebih hemat RAM dibanding 'npm start'
 CMD ["node", "server.js"]
